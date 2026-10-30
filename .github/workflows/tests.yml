@@ -1,0 +1,43 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          playwright install --with-deps chromium
+
+      # The sample suite has one test that fails on purpose
+      # (test_inventory_has_ten_items_intentional_failure) to demo a failure in log.html.
+      # CI deselects it so a red build always means a real problem.
+      # See docs/CI-GitHub-Actions.md.
+      - name: Run tests
+        run: >
+          pytest --robot-report
+          --deselect tests/test_login.py::test_inventory_has_ten_items_intentional_failure
+
+      - name: Upload Robot Framework report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: robot-results
+          path: |
+            robot-results/
+            test-results/
+          if-no-files-found: warn
